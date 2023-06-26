@@ -98,7 +98,6 @@ def generate_twitter_BERTopic_cytoscape(df_data):
     # Setting nr_topics to 'auto' enables somewhat reducing number of topics.
     topic_model = BERTopic(nr_topics="auto").fit(corpus, embeddings)
 
-
     # Removes stop words from topic representations and get updated topics
     # *If you comment out two lines below, you get topics full of stopwords such as "a" or "and" or "of"
     vectorizer_model = CountVectorizer(stop_words="english", ngram_range=(1, 5))
@@ -110,8 +109,7 @@ def generate_twitter_BERTopic_cytoscape(df_data):
     # Merging topic indexes to the original texts, row by row
     df_merge = pd.merge(df_corpus, df_document_info['Topic'],
                         left_index=True,
-                        right_index=True
-                        )
+                        right_index=True)
 
     # Reducing dimensions of embeddings hundreds of dimensions to two dimensions for visualization.
     dim_red_model = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine')
@@ -119,7 +117,6 @@ def generate_twitter_BERTopic_cytoscape(df_data):
 
     # Merging information of x, y coordinates of each text
     df_merge[['x', 'y']] = pd.DataFrame(reduced_embeddings)
-
 
     # Calculating sentiment scores topic by topic.
     df_topic_sentiment = df_merge.groupby('Topic').agg(
@@ -132,18 +129,12 @@ def generate_twitter_BERTopic_cytoscape(df_data):
     df_freq = pd.DataFrame(freq)
     df_topic = pd.merge(df_freq, df_topic_sentiment, how='inner', on='Topic')
 
-    # Calculating the most retweeted text in each topic and getting its text idx.
-    # And merging the most retweeted text information to df_topic
-    df_most_retweeted = df_merge.groupby('Topic')['retweet_count'].idxmax().reset_index().rename(
-        {'retweet_count': 'best_retweet_idx'}, axis=1)
-    df_topic = df_topic.merge(df_most_retweeted, how='inner', on='Topic')
-
     # Bertopic finds the representative texts on each topic, and the part below get indexes of those texts.
     representative_doc_dict = topic_model.get_representative_docs()
     df_topic['representative_text_indexes'] = df_topic['Topic'].apply(
-        lambda x: get_representative_text_idex(x, representative_doc_dict, df_merge))
+        lambda x: df_merge.index[df_merge['text'].isin(representative_doc_dict[x])].tolist())
 
-    # When negative sentiment scores surpasses that of positive sentiment, the topic is detected as negative.
+    # When negative sentiment scores surpass that of positive sentiment, the topic is detected as negative.
     # And we give random red colors to those alarming topics, otherwise random other colors.
     negative_topic_idx_list = df_topic_sentiment.query("sentiment_pos < sentiment_neg").Topic.tolist()
     df_topic['topic_color'] = df_topic['Topic'].apply(lambda x: assign_topic_color(x, negative_topic_idx_list))
@@ -152,9 +143,10 @@ def generate_twitter_BERTopic_cytoscape(df_data):
     return df_topic, df_merge, topic_model
 
 
+
 if __name__ == '__main__':
     # Read scraped and preprocessed data.
-    df_data = pd.read_csv('../data/data_to_export_twitter.csv')
+    df_data = pd.read_csv('../data/data_to_export.csv')
 
     # Apply BERTopic on the scraped data
     # df_topic: information of detected topic
